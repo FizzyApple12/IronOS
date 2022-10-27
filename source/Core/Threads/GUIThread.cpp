@@ -206,6 +206,34 @@ static void gui_drawBatteryIcon() {
   }
 #endif
 }
+static void gui_drawStatusBorder(bool boost, bool sleep) {
+  if (boost) {
+    uint8_t frame = ((xTaskGetTickCount() / TICKS_100MS) / 16) % 16;
+    
+    if (frame < 8) {
+      OLED::fillArea(0, 0, 8 - frame, 1, 1);
+      OLED::fillArea(0, 15, 8 - frame, 1, 1);
+    } else if (frame > 8) {
+      OLED::fillArea(96 - frame, 0, frame - 8, 1, 1);
+      OLED::fillArea(96 - frame, 15, frame - 8, 1, 1);
+    }
+
+    for (uint8_t i = 16; i < 82; i += 16) {
+      OLED::fillArea(i - frame, 0, 8, 1, 1);
+      OLED::fillArea(i - frame, 15, 8, 1, 1);
+    }
+  } else if (sleep) {
+    OLED::fillArea(0, 15, 96, 1, 1);
+  } else {
+    uint8_t totalFill = 94 * (TipThermoModel::getTipInF() / getSettingValue(SettingsOptions::SolderingTemp));
+    
+    OLED::fillArea(95 - totalFill, 0, totalFill, 1, 1);
+    OLED::fillArea(95 - totalFill, 15, totalFill, 1, 1);
+  }
+  
+  OLED::fillArea(0, 0, 1, 16, 1);
+  OLED::fillArea(95, 0, 1, 16, 1);
+}
 static void gui_solderingTempAdjust() {
   TickType_t lastChange              = xTaskGetTickCount();
   currentTempTargetDegC              = 0; // Turn off heater while adjusting temp
@@ -359,6 +387,9 @@ static int gui_SolderingSleepingMode(bool stayOff, bool autoStarted) {
     }
 
     OLED::clearScreen();
+
+    gui_drawStatusBorder(false, true);
+
     OLED::setCursor(0, 0);
     if (getSettingValue(SettingsOptions::DetailedSoldering)) {
       OLED::print(translatedString(Tr->SleepingAdvancedString), FontStyle::SMALL);
@@ -559,6 +590,9 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
     // else we update the screen information
 
     OLED::clearScreen();
+
+    // draw indicator rectangle
+    gui_drawStatusBorder(boostModeOn, false);
 
     // Draw in the screen details
     if (getSettingValue(SettingsOptions::DetailedSoldering)) {
