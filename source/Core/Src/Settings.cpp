@@ -21,6 +21,12 @@ bool sanitiseSettings();
 #define QC_VOLTAGE_MAX 140
 #endif
 
+typedef struct {
+  const char name[16];
+  const uint16_t solderingTemp;
+  const uint16_t boostTemp;
+} Profile;
+
 /*
  * This struct must be a multiple of 2 bytes as it is saved / restored from
  * flash in uint16_t chunks
@@ -90,12 +96,6 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
     {0, 5, 1, 0},                                                   // SelectedProfile
 };
 static_assert((sizeof(settingsConstants) / sizeof(SettingConstants)) == ((int)SettingsOptions::SettingsOptionsLength));
-
-typedef struct {
-  const char name[16];
-  const uint16_t solderingTemp;
-  const uint16_t boostTemp;
-} Profile;
 
 void saveSettings() { flash_save_buffer((uint8_t *)&systemSettings, sizeof(systemSettingsType)); }
 
