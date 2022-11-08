@@ -22,9 +22,9 @@ bool sanitiseSettings();
 #endif
 
 typedef struct {
-  const char name[16];
-  const uint16_t solderingTemp;
-  const uint16_t boostTemp;
+  char name[16];
+  uint16_t solderingTemp;
+  uint16_t boostTemp;
 } Profile;
 
 /*
@@ -149,7 +149,7 @@ bool sanitiseSettings() {
       itoa(i, numstr, 10);
       newName[8] = numstr[0]; // overwrite the # with our number
 
-      strncpy(systemSettings.profiles[i].name, newName, 16);
+      strncpy((char*) systemSettings.profiles[i].name, newName, 16);
       dirty                          = true;
     }
   }
@@ -285,7 +285,7 @@ char* lookupCurrentProfileName() {
   if (profile == 0) return name; //default solder settings
 
   if (profile > 5) profile = 5;
-  strncpy(name, systemSettings.profiles[profile - 1].name, 16); //copy only relevant characters, escape character stays tacked on to the end
+  strncpy(name, (char*) systemSettings.profiles[profile - 1].name, 16); //copy only relevant characters, escape character stays tacked on to the end
 
   return name;
 }
@@ -320,7 +320,7 @@ void setCurrentProfileName(char* name) {
   if (profile == 0) return;
 
   if (profile > 5) profile = 5;
-  strncpy(systemSettings.profiles[profile - 1].name, name, 16);
+  strncpy((char*) systemSettings.profiles[profile - 1].name, name, 16);
 }
 
 // Select a new active profile (0-5)

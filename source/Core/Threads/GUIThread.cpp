@@ -94,34 +94,6 @@ void gui_drawTipTemp(bool symbol, const FontStyle font) {
     }
   }
 }
-static void gui_drawStatusBorder(bool boost, bool sleep) {
-  if (boost) {
-    uint8_t frame = ((xTaskGetTickCount() / TICKS_100MS) / 16) % 16;
-    
-    if (frame < 8) {
-      OLED::fillArea(0, 0, 8 - frame, 1, 1);
-      OLED::fillArea(0, 15, 8 - frame, 1, 1);
-    } else if (frame > 8) {
-      OLED::fillArea(96 - frame, 0, frame - 8, 1, 1);
-      OLED::fillArea(96 - frame, 15, frame - 8, 1, 1);
-    }
-
-    for (uint8_t i = 16; i < 82; i += 16) {
-      OLED::fillArea(i - frame, 0, 8, 1, 1);
-      OLED::fillArea(i - frame, 15, 8, 1, 1);
-    }
-  } else if (sleep) {
-    OLED::fillArea(0, 15, 96, 1, 1);
-  } else {
-    uint8_t totalFill = 94 * (TipThermoModel::getTipInF() / lookupCurrentProfileSolderTemperature());
-    
-    OLED::fillArea(95 - totalFill, 0, totalFill, 1, 1);
-    OLED::fillArea(95 - totalFill, 15, totalFill, 1, 1);
-  }
-  
-  OLED::fillArea(0, 0, 1, 16, 1);
-  OLED::fillArea(95, 0, 1, 16, 1);
-}
 void performCJCC() {
   // Calibrate Cold Junction Compensation directly at boot, before internal components get warm.
   OLED::refresh();
@@ -394,7 +366,7 @@ static void gui_ProfileSwitcher() {
 
     if (OLED::getRotation()) {
       OLED::setCursor(0, 0);
-      OLED::print('<', FontStyle::LARGE);
+      OLED::print("<", FontStyle::LARGE);
 
       OLED::setCursor(16, 0);
       OLED::print(lookupCurrentProfileName(), FontStyle::SMALL);
@@ -417,7 +389,7 @@ static void gui_ProfileSwitcher() {
       }
     } else {
       OLED::setCursor(84, 0);
-      OLED::print('>', FontStyle::LARGE);
+      OLED::print(">", FontStyle::LARGE);
 
       OLED::setCursor(80, 8);
       OLED::print(lookupCurrentProfileName(), FontStyle::SMALL);
@@ -477,7 +449,7 @@ static int gui_SolderingSleepingMode(bool stayOff, bool autoStarted) {
     if (getSettingValue(SettingsOptions::TemperatureInF)) {
       currentTempTargetDegC = stayOff ? 0 : TipThermoModel::convertFtoC(min(getSettingValue(SettingsOptions::SleepTemp), lookupCurrentProfileSolderTemperature()));
     } else {
-      currentTempTargetDegC = stayOff ? 0 : min(getSettingValue(SettingsOptions::SleepTemp), glookupCurrentProfileSolderTemperature());
+      currentTempTargetDegC = stayOff ? 0 : min(getSettingValue(SettingsOptions::SleepTemp), lookupCurrentProfileSolderTemperature());
     }
     // draw the lcd
     uint16_t tipTemp;
