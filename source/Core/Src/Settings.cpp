@@ -92,7 +92,7 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
 static_assert((sizeof(settingsConstants) / sizeof(SettingConstants)) == ((int)SettingsOptions::SettingsOptionsLength));
 
 typedef struct {
-  const char[16] name;
+  const char name[16];
   const uint16_t solderingTemp;
   const uint16_t boostTemp;
 } Profile;
@@ -135,16 +135,21 @@ bool sanitiseSettings() {
   }
   for (int i = 0; i < 5; i++) {
     // Check min max for all settings, if outside the range, move to default
-    if (systemSettings.profile[i].solderingTemp < settingsConstants[SettingsOptions::SolderingTemp].min || systemSettings.profile[i].solderingTemp > settingsConstants[SettingsOptions::SolderingTemp].max) {
-      systemSettings.profile[i].solderingTemp = settingsConstants[SettingsOptions::SolderingTemp].defaultValue;
+    if (systemSettings.profiles[i].solderingTemp < settingsConstants[SettingsOptions::SolderingTemp].min || systemSettings.profiles[i].solderingTemp > settingsConstants[SettingsOptions::SolderingTemp].max) {
+      systemSettings.profiles[i].solderingTemp = settingsConstants[SettingsOptions::SolderingTemp].defaultValue;
       dirty                                   = true;
     }
-    if (systemSettings.profile[i].boostTemp < settingsConstants[SettingsOptions::BoostTemp].min || systemSettings.profile[i].boostTemp > settingsConstants[SettingsOptions::BoostTemp].max) {
-      systemSettings.profile[i].boostTemp = settingsConstants[SettingsOptions::BoostTemp].defaultValue;
+    if (systemSettings.profiles[i].boostTemp < settingsConstants[SettingsOptions::BoostTemp].min || systemSettings.profiles[i].boostTemp > settingsConstants[SettingsOptions::BoostTemp].max) {
+      systemSettings.profiles[i].boostTemp = settingsConstants[SettingsOptions::BoostTemp].defaultValue;
       dirty                               = true;
     }
-    if (systemSettings.profile[i].name[0] == 0) {
-      systemSettings.profile[i].name = "Profile " + i + "       ";
+    if (systemSettings.profiles[i].name[0] == 0) {
+      char newName[16] = "Profile #      ";
+      char numstr[21]; // just in case someone manages to get a stupid number of profiles
+      itoa(i, numstr, 10);
+      newName[8] = numstr[0]; // overwrite the # with our number
+
+      strncpy(systemSettings.profiles[i].name, newName, 16);
       dirty                          = true;
     }
   }
@@ -273,12 +278,16 @@ uint16_t lookupCurrentProfileBoostTemperature() {
 }
 
 // Get the name for the current profile
-char[17] lookupCurrentProfileName() {
+char* lookupCurrentProfileName() {
+  static char name[17] = "Free Solder    \0";
+
   uint8_t profile = getProfile();
-  if (profile == 0) return "Free Solder     \0"; //default solder settings
+  if (profile == 0) return name; //default solder settings
 
   if (profile > 5) profile = 5;
-  return systemSettings.profiles[profile - 1].name + '\0';
+  strncpy(name, systemSettings.profiles[profile - 1].name, 16); //copy only relevant characters, escape character stays tacked on to the end
+
+  return name;
 }
 
 // Set the soldering temperature for the current profile
@@ -305,13 +314,13 @@ void setCurrentProfileBoostTemperature(uint16_t temperature) {
   systemSettings.profiles[profile - 1].boostTemp = temperature;
 }
 
-// Set the name for the current profile
-void setCurrentProfileName(char[16] name) {
+// Set the name for the current profile (expects 16 characters, be careful of segfaults!)
+void setCurrentProfileName(char* name) {
   uint8_t profile = getProfile();
   if (profile == 0) return;
 
   if (profile > 5) profile = 5;
-  systemSettings.profiles[profile - 1].name = name;
+  strncpy(systemSettings.profiles[profile - 1].name, name, 16);
 }
 
 // Select a new active profile (0-5)
