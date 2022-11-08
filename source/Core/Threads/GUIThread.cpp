@@ -1153,6 +1153,9 @@ void startGUITask(void const *argument) {
     }
     // Clear the lcd buffer
     OLED::clearScreen();
+
+    gui_drawStatusBorder(false, false);
+
     if (OLED::getRotation()) {
       OLED::setCursor(50, 0);
     } else {
