@@ -51,9 +51,9 @@ enum SettingsOptions {
   OLEDBrightness                 = 34, // Brightness for the OLED display
   LOGOTime                       = 35, // Duration the logo will be displayed for
   CalibrateCJC                   = 36, // Toggle calibrate CJC at next boot
-
+  SelectedProfile                = 37, // Currently selected soldering profile
   //
-  SettingsOptionsLength = 37, //
+  SettingsOptionsLength = 38, //
 };
 
 typedef enum {
@@ -80,5 +80,15 @@ void setSettingValue(const enum SettingsOptions option, const uint16_t newValue)
 // Special access
 uint8_t  lookupVoltageLevel();
 uint16_t lookupHallEffectThreshold();
+
+// Profile switcher
+uint16_t lookupCurrentProfileSolderTemperature();
+uint16_t lookupCurrentProfileBoostTemperature();
+char[17] lookupCurrentProfileName();
+void setCurrentProfileSolderTemperature(uint16_t temperature);
+void setCurrentProfileBoostTemperature(uint16_t temperature);
+void setCurrentProfileName(char[16] name);
+void selectProfile(uint8_t profile);
+uint8_t getProfile();
 
 #endif /* SETTINGS_H_ */

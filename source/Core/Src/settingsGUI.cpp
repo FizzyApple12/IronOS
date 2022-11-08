@@ -534,6 +534,8 @@ static bool setTempF(void) {
   setSettingValue(SettingsOptions::SolderingTemp, SolderingTemp);
   setSettingValue(SettingsOptions::SleepTemp, SleepTemp);
 
+  #warning FIX SOLDERING SETTINGS, ADD PROFILE CHANGER
+
   return res;
 }
 

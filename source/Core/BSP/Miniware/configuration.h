@@ -17,6 +17,7 @@
  */
 
 #define SLEEP_TEMP         150 // Default sleep temperature
+#define SOLDERING_TEMP     320 // Default soldering temp.
 #define BOOST_TEMP         420 // Default boost temp.
 #define BOOST_MODE_ENABLED 1   // 0: Disable 1: Enable
 

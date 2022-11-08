@@ -94,6 +94,34 @@ void gui_drawTipTemp(bool symbol, const FontStyle font) {
     }
   }
 }
+static void gui_drawStatusBorder(bool boost, bool sleep) {
+  if (boost) {
+    uint8_t frame = ((xTaskGetTickCount() / TICKS_100MS) / 16) % 16;
+    
+    if (frame < 8) {
+      OLED::fillArea(0, 0, 8 - frame, 1, 1);
+      OLED::fillArea(0, 15, 8 - frame, 1, 1);
+    } else if (frame > 8) {
+      OLED::fillArea(96 - frame, 0, frame - 8, 1, 1);
+      OLED::fillArea(96 - frame, 15, frame - 8, 1, 1);
+    }
+
+    for (uint8_t i = 16; i < 82; i += 16) {
+      OLED::fillArea(i - frame, 0, 8, 1, 1);
+      OLED::fillArea(i - frame, 15, 8, 1, 1);
+    }
+  } else if (sleep) {
+    OLED::fillArea(0, 15, 96, 1, 1);
+  } else {
+    uint8_t totalFill = 94 * (TipThermoModel::getTipInF() / lookupCurrentProfileSolderTemperature());
+    
+    OLED::fillArea(95 - totalFill, 0, totalFill, 1, 1);
+    OLED::fillArea(95 - totalFill, 15, totalFill, 1, 1);
+  }
+  
+  OLED::fillArea(0, 0, 1, 16, 1);
+  OLED::fillArea(95, 0, 1, 16, 1);
+}
 void performCJCC() {
   // Calibrate Cold Junction Compensation directly at boot, before internal components get warm.
   OLED::refresh();
@@ -271,7 +299,7 @@ static void gui_solderingTempAdjust() {
     }
     if (delta != 0) {
       // constrain between the set temp limits, i.e. 10-450 C
-      int16_t newTemp = getSettingValue(SettingsOptions::SolderingTemp);
+      int16_t newTemp = lookupCurrentProfileSolderTemperature();
       newTemp += delta;
       // Round to nearest increment of delta
       delta   = abs(delta);
@@ -288,7 +316,7 @@ static void gui_solderingTempAdjust() {
         if (newTemp < MIN_TEMP_C)
           newTemp = MIN_TEMP_C;
       }
-      setSettingValue(SettingsOptions::SolderingTemp, (uint16_t)newTemp);
+      setCurrentProfileSolderTemperature((uint16_t)newTemp);
     }
     if (xTaskGetTickCount() - lastChange > (TICKS_SECOND * 2))
       return; // exit if user just doesn't press anything for a bit
@@ -300,7 +328,7 @@ static void gui_solderingTempAdjust() {
     }
 
     OLED::print(SymbolSpace, FontStyle::LARGE);
-    OLED::printNumber(getSettingValue(SettingsOptions::SolderingTemp), 3, FontStyle::LARGE);
+    OLED::printNumber(lookupCurrentProfileSolderTemperature(), 3, FontStyle::LARGE);
     if (getSettingValue(SettingsOptions::TemperatureInF))
       OLED::drawSymbol(0);
     else {
@@ -316,6 +344,107 @@ static void gui_solderingTempAdjust() {
     GUIDelay();
   }
 }
+static void gui_ProfileSwitcher() {
+  TickType_t  lastChange          = xTaskGetTickCount();
+  currentTempTargetDegC           = 0; // Turn off heater while changing profiles
+  uint8_t     newProfileSelection = 0;
+  bool        waitForRelease      = false;
+  ButtonState buttons             = getButtonState();
+  if (buttons != BUTTON_NONE) {
+    // Temp adjust entered by long-pressing F button.
+    waitForRelease = true;
+  }
+  for (;;) {
+    OLED::setCursor(0, 0);
+    OLED::clearScreen();
+    buttons = getButtonState();
+    if (buttons) {
+      if (waitForRelease) {
+        buttons = BUTTON_NONE;
+      }
+      lastChange = xTaskGetTickCount();
+    } else {
+      waitForRelease = false;
+    }
+    switch (buttons) {
+    case BUTTON_NONE:
+      // stay
+      break;
+    case BUTTON_BOTH:
+      // exit
+      return;
+      break;
+    case BUTTON_F_SHORT:
+      // save and exit
+      selectProfile(newProfileSelection);
+      saveSettings();
+      return;
+      break;
+    case BUTTON_B_SHORT:
+      // select the next profile or loop back to first
+      newProfileSelection++;
+      if (newProfileSelection == 6) newProfileSelection = 0;
+      break;
+    default:
+      break;
+    }
+
+    if (xTaskGetTickCount() - lastChange > (TICKS_SECOND * 2))
+      return; // exit if user just doesn't press anything for a bit
+
+    if (OLED::getRotation()) {
+      OLED::setCursor(0, 0);
+      OLED::print('<', FontStyle::LARGE);
+
+      OLED::setCursor(16, 0);
+      OLED::print(lookupCurrentProfileName(), FontStyle::SMALL);
+
+      OLED::setCursor(16, 8);
+      OLED::printNumber(lookupCurrentProfileSolderTemperature(), 3, FontStyle::SMALL);
+      if (getSettingValue(SettingsOptions::TemperatureInF))
+        OLED::drawSymbol(0);
+      else {
+        OLED::drawSymbol(1);
+      }
+      
+      OLED::print(" | ", FontStyle::SMALL);
+      
+      OLED::printNumber(lookupCurrentProfileBoostTemperature(), 3, FontStyle::SMALL);
+      if (getSettingValue(SettingsOptions::TemperatureInF))
+        OLED::drawSymbol(0);
+      else {
+        OLED::drawSymbol(1);
+      }
+    } else {
+      OLED::setCursor(84, 0);
+      OLED::print('>', FontStyle::LARGE);
+
+      OLED::setCursor(80, 8);
+      OLED::print(lookupCurrentProfileName(), FontStyle::SMALL);
+
+      OLED::setCursor(80, 0);
+      OLED::printNumber(lookupCurrentProfileSolderTemperature(), 3, FontStyle::SMALL);
+      if (getSettingValue(SettingsOptions::TemperatureInF))
+        OLED::drawSymbol(0);
+      else {
+        OLED::drawSymbol(1);
+      }
+      
+      OLED::print(" | ", FontStyle::SMALL);
+      
+      OLED::printNumber(lookupCurrentProfileBoostTemperature(), 3, FontStyle::SMALL);
+      if (getSettingValue(SettingsOptions::TemperatureInF))
+        OLED::drawSymbol(0);
+      else {
+        OLED::drawSymbol(1);
+      }
+    }
+
+    OLED::refresh();
+    GUIDelay();
+  }
+}
+
 static bool shouldShutdown() {
   if (getSettingValue(SettingsOptions::ShutdownTime)) { // only allow shutdown exit if time > 0
     if (lastMovementTime) {
@@ -346,9 +475,9 @@ static int gui_SolderingSleepingMode(bool stayOff, bool autoStarted) {
       return 1; // return non-zero on error
 #endif
     if (getSettingValue(SettingsOptions::TemperatureInF)) {
-      currentTempTargetDegC = stayOff ? 0 : TipThermoModel::convertFtoC(min(getSettingValue(SettingsOptions::SleepTemp), getSettingValue(SettingsOptions::SolderingTemp)));
+      currentTempTargetDegC = stayOff ? 0 : TipThermoModel::convertFtoC(min(getSettingValue(SettingsOptions::SleepTemp), lookupCurrentProfileSolderTemperature()));
     } else {
-      currentTempTargetDegC = stayOff ? 0 : min(getSettingValue(SettingsOptions::SleepTemp), getSettingValue(SettingsOptions::SolderingTemp));
+      currentTempTargetDegC = stayOff ? 0 : min(getSettingValue(SettingsOptions::SleepTemp), glookupCurrentProfileSolderTemperature());
     }
     // draw the lcd
     uint16_t tipTemp;
@@ -509,7 +638,7 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
         break;
       case BUTTON_F_LONG:
         // if boost mode is enabled turn it on
-        if (getSettingValue(SettingsOptions::BoostTemp) && (getSettingValue(SettingsOptions::LockingMode) == 1)) {
+        if (lookupCurrentProfileBoostTemperature() && (getSettingValue(SettingsOptions::LockingMode) == 1)) {
           boostModeOn = true;
         }
         break;
@@ -535,17 +664,20 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
         return; // exit on back long hold
       case BUTTON_F_LONG:
         // if boost mode is enabled turn it on
-        if (getSettingValue(SettingsOptions::BoostTemp))
+        if (lookupCurrentProfileBoostTemperature())
           boostModeOn = true;
         break;
-      case BUTTON_F_SHORT:
-      case BUTTON_B_SHORT: {
-        uint16_t oldTemp = getSettingValue(SettingsOptions::SolderingTemp);
+      case BUTTON_F_SHORT:{
+        uint16_t oldTemp = lookupCurrentProfileSolderTemperature();
         gui_solderingTempAdjust(); // goto adjust temp mode
-        if (oldTemp != getSettingValue(SettingsOptions::SolderingTemp)) {
+        if (oldTemp != lookupCurrentProfileSolderTemperature()) {
           saveSettings(); // only save on change
         }
       } break;
+      case BUTTON_B_SHORT: 
+        // profile switcher
+        gui_ProfileSwitcher();
+        return;
       case BUTTON_BOTH_LONG:
         if (getSettingValue(SettingsOptions::LockingMode) != 0) {
           // Lock buttons
@@ -646,15 +778,15 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
     // Update the setpoints for the temperature
     if (boostModeOn) {
       if (getSettingValue(SettingsOptions::TemperatureInF))
-        currentTempTargetDegC = TipThermoModel::convertFtoC(getSettingValue(SettingsOptions::BoostTemp));
+        currentTempTargetDegC = TipThermoModel::convertFtoC(lookupCurrentProfileBoostTemperature());
       else {
-        currentTempTargetDegC = (getSettingValue(SettingsOptions::BoostTemp));
+        currentTempTargetDegC = (lookupCurrentProfileBoostTemperature());
       }
     } else {
       if (getSettingValue(SettingsOptions::TemperatureInF))
-        currentTempTargetDegC = TipThermoModel::convertFtoC(getSettingValue(SettingsOptions::SolderingTemp));
+        currentTempTargetDegC = TipThermoModel::convertFtoC(lookupCurrentProfileSolderTemperature());
       else {
-        currentTempTargetDegC = (getSettingValue(SettingsOptions::SolderingTemp));
+        currentTempTargetDegC = (lookupCurrentProfileSolderTemperature());
       }
     }
 
@@ -1161,7 +1293,7 @@ void startGUITask(void const *argument) {
         } else {
           OLED::setCursor(73, 0); // top right
         }
-        OLED::printNumber(getSettingValue(SettingsOptions::SolderingTemp), 3, FontStyle::SMALL); // draw set temp
+        OLED::printNumber(lookupCurrentProfileSolderTemperature(), 3, FontStyle::SMALL); // draw set temp
         if (getSettingValue(SettingsOptions::TemperatureInF))
           OLED::print(SymbolDegF, FontStyle::SMALL);
         else

@@ -29,6 +29,7 @@ typedef struct {
   uint16_t versionMarker;
   uint16_t length; // Length of valid bytes following
   uint16_t settingsValues[SettingsOptionsLength];
+  Profile profiles[5];
   // used to make this nicely "good enough" aligned to 32 bytes to make driver code trivial
   uint32_t padding;
 
@@ -49,8 +50,8 @@ typedef struct {
 
 static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOptionsLength] = {
     //{min,max,increment,default}
-    {MIN_TEMP_C, MAX_TEMP_F, 5, 320},                               // SolderingTemp
-    {MIN_TEMP_C, MAX_TEMP_F, 5, 150},                               // SleepTemp
+    {MIN_TEMP_C, MAX_TEMP_F, 5, SOLDERING_TEMP},                    // SolderingTemp
+    {MIN_TEMP_C, MAX_TEMP_F, 5, SLEEP_TEMP},                        // SleepTemp
     {0, 15, 1, SLEEP_TIME},                                         // SleepTime
     {0, 4, 1, CUT_OUT_SETTING},                                     // MinDCVoltageCells
     {24, 38, 1, RECOM_VOL_CELL},                                    // MinVoltageCells
@@ -86,9 +87,15 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
     {0, 99, 11, 33},                                                // OLEDBrightness
     {0, 5, 1, 1},                                                   // LOGOTime
     {0, 1, 1, 0},                                                   // CalibrateCJC
-
+    {0, 5, 1, 0},                                                   // SelectedProfile
 };
 static_assert((sizeof(settingsConstants) / sizeof(SettingConstants)) == ((int)SettingsOptions::SettingsOptionsLength));
+
+typedef struct {
+  const char[16] name;
+  const uint16_t solderingTemp;
+  const uint16_t boostTemp;
+} Profile;
 
 void saveSettings() { flash_save_buffer((uint8_t *)&systemSettings, sizeof(systemSettingsType)); }
 
@@ -124,6 +131,21 @@ bool sanitiseSettings() {
     if (systemSettings.settingsValues[i] < settingsConstants[i].min || systemSettings.settingsValues[i] > settingsConstants[i].max) {
       systemSettings.settingsValues[i] = settingsConstants[i].defaultValue;
       dirty                            = true;
+    }
+  }
+  for (int i = 0; i < 5; i++) {
+    // Check min max for all settings, if outside the range, move to default
+    if (systemSettings.profile[i].solderingTemp < settingsConstants[SettingsOptions::SolderingTemp].min || systemSettings.profile[i].solderingTemp > settingsConstants[SettingsOptions::SolderingTemp].max) {
+      systemSettings.profile[i].solderingTemp = settingsConstants[SettingsOptions::SolderingTemp].defaultValue;
+      dirty                                   = true;
+    }
+    if (systemSettings.profile[i].boostTemp < settingsConstants[SettingsOptions::BoostTemp].min || systemSettings.profile[i].boostTemp > settingsConstants[SettingsOptions::BoostTemp].max) {
+      systemSettings.profile[i].boostTemp = settingsConstants[SettingsOptions::BoostTemp].defaultValue;
+      dirty                               = true;
+    }
+    if (systemSettings.profile[i].name[0] == 0) {
+      systemSettings.profile[i].name = "Profile " + i + "       ";
+      dirty                          = true;
     }
   }
   if (dirty) {
@@ -230,4 +252,74 @@ uint8_t lookupVoltageLevel() {
     return 90; // 9V since iron does not function effectively below this
   else
     return (minVoltageOnCell * minVoltageCellCount) + (minVoltageCellCount * 2);
+}
+
+// Get the soldering temperature for the current profile
+uint16_t lookupCurrentProfileSolderTemperature() {
+  uint8_t profile = getProfile();
+  if (profile == 0) return getSettingValue(SettingsOptions::SolderingTemp); //default solder settings
+
+  if (profile > 5) profile = 5;
+  return systemSettings.profiles[profile - 1].solderingTemp;
+}
+
+// Get the boost temperature for the current profile
+uint16_t lookupCurrentProfileBoostTemperature() {
+  uint8_t profile = getProfile();
+  if (profile == 0) return getSettingValue(SettingsOptions::BoostTemp); //default solder settings
+
+  if (profile > 5) profile = 5;
+  return systemSettings.profiles[profile - 1].boostTemp;
+}
+
+// Get the name for the current profile
+char[17] lookupCurrentProfileName() {
+  uint8_t profile = getProfile();
+  if (profile == 0) return "Free Solder     \0"; //default solder settings
+
+  if (profile > 5) profile = 5;
+  return systemSettings.profiles[profile - 1].name + '\0';
+}
+
+// Set the soldering temperature for the current profile
+void setCurrentProfileSolderTemperature(uint16_t temperature) {
+  uint8_t profile = getProfile();
+  if (profile == 0) {
+    setSettingValue(SettingsOptions::SolderingTemp, temperature); //default solder settings
+    return;
+  }
+
+  if (profile > 5) profile = 5;
+  systemSettings.profiles[profile - 1].solderingTemp = temperature;
+}
+
+// Set the boost temperature for the current profile
+void setCurrentProfileBoostTemperature(uint16_t temperature) {
+  uint8_t profile = getProfile();
+  if (profile == 0) {
+    setSettingValue(SettingsOptions::BoostTemp, temperature); //default solder settings
+    return;
+  }
+
+  if (profile > 5) profile = 5;
+  systemSettings.profiles[profile - 1].boostTemp = temperature;
+}
+
+// Set the name for the current profile
+void setCurrentProfileName(char[16] name) {
+  uint8_t profile = getProfile();
+  if (profile == 0) return;
+
+  if (profile > 5) profile = 5;
+  systemSettings.profiles[profile - 1].name = name;
+}
+
+// Select a new active profile (0-5)
+void selectProfile(uint8_t profile) {
+  setSettingValue(SettingsOptions::SelectedProfile,(uint16_t)profile);
+}
+
+// Get the currently selected profile (0-5)
+uint8_t getProfile() {
+  return getSettingValue(SettingsOptions::SelectedProfile);
 }
