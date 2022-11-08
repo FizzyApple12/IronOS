@@ -13,7 +13,7 @@
 #include "Setup.h"
 #include "configuration.h"
 #include <string.h> // for memset
-#include <stdlib.h> // for itoa
+#include <stdio.h> // for sprintf
 bool sanitiseSettings();
 
 #ifdef POW_QC_20V
@@ -146,9 +146,9 @@ bool sanitiseSettings() {
     }
     if (systemSettings.profiles[i].name[0] == 0) {
       char newName[16] = "Profile #      ";
-      char numstr[21]; // just in case someone manages to get a stupid number of profiles
-      itoa(i, numstr, 10);
-      newName[8] = numstr[0]; // overwrite the # with our number
+      char numberString[21]; // just in case someone manages to get a stupid number of profiles
+      sprintf(numberString, "%d", i);
+      newName[8] = numberString[0]; // overwrite the # with our number
 
       strncpy((char*) systemSettings.profiles[i].name, newName, 16);
       dirty                          = true;
