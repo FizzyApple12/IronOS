@@ -388,8 +388,6 @@ static int gui_SolderingSleepingMode(bool stayOff, bool autoStarted) {
 
     OLED::clearScreen();
 
-    gui_drawStatusBorder(false, true);
-
     OLED::setCursor(0, 0);
     if (getSettingValue(SettingsOptions::DetailedSoldering)) {
       OLED::print(translatedString(Tr->SleepingAdvancedString), FontStyle::SMALL);
@@ -414,6 +412,9 @@ static int gui_SolderingSleepingMode(bool stayOff, bool autoStarted) {
         OLED::drawSymbol(1);
       }
     }
+
+    // draw indicator rectangle
+    gui_drawStatusBorder(false, true);
 
     OLED::refresh();
     GUIDelay();
@@ -591,9 +592,6 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
 
     OLED::clearScreen();
 
-    // draw indicator rectangle
-    gui_drawStatusBorder(boostModeOn, false);
-
     // Draw in the screen details
     if (getSettingValue(SettingsOptions::DetailedSoldering)) {
       if (OLED::getRotation()) {
@@ -674,6 +672,10 @@ static void gui_solderingMode(uint8_t jumpToSleep) {
         gui_drawBatteryIcon();
       }
     }
+
+    // draw indicator rectangle
+    gui_drawStatusBorder(boostModeOn, false);
+
     OLED::refresh();
     // Update the setpoints for the temperature
     if (boostModeOn) {
@@ -1154,8 +1156,6 @@ void startGUITask(void const *argument) {
     // Clear the lcd buffer
     OLED::clearScreen();
 
-    gui_drawStatusBorder(false, false);
-
     if (OLED::getRotation()) {
       OLED::setCursor(50, 0);
     } else {
@@ -1264,6 +1264,9 @@ void startGUITask(void const *argument) {
       OLED::transitionSecondaryFramebuffer(false);
       showExitMenuTransition = false;
     } else {
+      // draw indicator rectangle
+      gui_drawStatusBorder(false, false);
+
       OLED::refresh();
       GUIDelay();
     }
