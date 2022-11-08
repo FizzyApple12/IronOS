@@ -13,6 +13,7 @@
 #include "Setup.h"
 #include "configuration.h"
 #include <string.h> // for memset
+#include <stdlib.h> // for itoa
 bool sanitiseSettings();
 
 #ifdef POW_QC_20V
